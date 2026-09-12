@@ -1,0 +1,99 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #0b1330;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --font-sans: var(--font-body);
+  --font-display: var(--font-heading);
+
+  /* Navy — primary brand color: institutional credibility */
+  --color-navy-50: #eef1f8;
+  --color-navy-100: #d6ddee;
+  --color-navy-200: #aebadd;
+  --color-navy-300: #8495c9;
+  --color-navy-400: #5a6db0;
+  --color-navy-500: #3c5096;
+  --color-navy-600: #2a3b78;
+  --color-navy-700: #1c2a5e;
+  --color-navy-800: #121c46;
+  --color-navy-900: #0b1330;
+  --color-navy-950: #060a1c;
+
+  /* Gold — accent color: leadership, distinction, warmth */
+  --color-gold-50: #fdf7e9;
+  --color-gold-100: #faebc0;
+  --color-gold-200: #f5d787;
+  --color-gold-300: #edbd53;
+  --color-gold-400: #dfa233;
+  --color-gold-500: #c78a22;
+  --color-gold-600: #a06c1a;
+  --color-gold-700: #7a5217;
+  --color-gold-800: #573a14;
+  --color-gold-900: #3a2710;
+
+  /* Neutral warm background */
+  --color-sand-50: #faf9f6;
+  --color-sand-100: #f4f1ea;
+  --color-sand-200: #e9e3d5;
+
+  --shadow-card: 0 1px 2px rgba(11, 19, 48, 0.04), 0 8px 24px -8px rgba(11, 19, 48, 0.12);
+  --shadow-card-hover: 0 4px 8px rgba(11, 19, 48, 0.06), 0 16px 40px -12px rgba(11, 19, 48, 0.18);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #ffffff;
+    --foreground: #0b1330;
+  }
+}
+
+* {
+  border-color: theme(--color-navy-100);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading), var(--font-body), ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: -0.02em;
+}
+
+::selection {
+  background: var(--color-gold-200);
+  color: var(--color-navy-900);
+}
+
+.prose-nexus p {
+  margin-bottom: 1em;
+  line-height: 1.7;
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.6s ease-out both;
+}
+
+.bg-grid-pattern {
+  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+  background-size: 22px 22px;
+}

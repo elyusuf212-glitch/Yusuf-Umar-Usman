@@ -1,0 +1,823 @@
+// CitizensNexus — Prisma schema
+// PostgreSQL data model covering identity, programmes, fellowship, mentorship,
+// learning, opportunities, events, projects/SDGs, certificates, community and admin/content.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum Role {
+  ADMIN
+  PROGRAMME_MANAGER
+  MENTOR
+  FELLOW
+  PARTNER
+  MEMBER // registered user / applicant who is not yet a fellow
+}
+
+enum ProgrammeStatus {
+  DRAFT
+  PUBLISHED
+  OPEN_FOR_APPLICATIONS
+  IN_PROGRESS
+  COMPLETED
+  ARCHIVED
+}
+
+enum DeliveryFormat {
+  IN_PERSON
+  VIRTUAL
+  HYBRID
+}
+
+enum CohortStatus {
+  UPCOMING
+  APPLICATIONS_OPEN
+  SELECTION
+  ACTIVE
+  COMPLETED
+}
+
+enum ApplicationStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  SHORTLISTED
+  INTERVIEW
+  ACCEPTED
+  WAITLISTED
+  REJECTED
+}
+
+enum FellowStatus {
+  ACTIVE
+  GRADUATED
+  WITHDRAWN
+}
+
+enum MentorAssignmentStatus {
+  ACTIVE
+  COMPLETED
+  ENDED
+}
+
+enum SessionStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+}
+
+enum ContentType {
+  VIDEO
+  PDF
+  ARTICLE
+  QUIZ
+  ASSIGNMENT
+}
+
+enum EnrollmentStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum SubmissionStatus {
+  SUBMITTED
+  GRADED
+  RETURNED
+}
+
+enum EventType {
+  TRAINING
+  WEBINAR
+  LEADERSHIP_CONVERSATION
+  NETWORKING
+  TOWN_HALL
+  COMMUNITY_PROJECT
+  MENTORSHIP_SESSION
+  CONFERENCE
+}
+
+enum EventMode {
+  ONLINE
+  OFFLINE
+  HYBRID
+}
+
+enum OpportunityCategory {
+  JOB
+  INTERNSHIP
+  SCHOLARSHIP
+  FELLOWSHIP
+  GRANT
+  COMPETITION
+  CONFERENCE
+  TRAINING
+  VOLUNTEERING
+  YOUTH_PROGRAMME
+}
+
+enum ProjectStatus {
+  PROPOSED
+  ONGOING
+  COMPLETED
+}
+
+enum NotificationType {
+  APPLICATION_UPDATE
+  ANNOUNCEMENT
+  SESSION_REMINDER
+  MENTOR_MESSAGE
+  ASSIGNMENT_DEADLINE
+  EVENT_REMINDER
+  NEW_OPPORTUNITY
+  CERTIFICATE
+  PROGRAMME_MILESTONE
+}
+
+enum AnnouncementAudience {
+  ALL
+  FELLOWS
+  MENTORS
+  PROGRAMME
+  COHORT
+}
+
+enum PartnerType {
+  NGO
+  GOVERNMENT
+  PRIVATE_SECTOR
+  UNIVERSITY
+  DEVELOPMENT_ORG
+  MULTILATERAL
+}
+
+enum InquiryStatus {
+  NEW
+  IN_REVIEW
+  APPROVED
+  DECLINED
+}
+
+enum ResourceType {
+  PDF
+  LINK
+  TEMPLATE
+  GUIDE
+  VIDEO
+}
+
+// ---------------------------------------------------------------------------
+// Identity
+// ---------------------------------------------------------------------------
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  passwordHash  String
+  role          Role      @default(MEMBER)
+  phone         String?
+  avatarUrl     String?
+  isActive      Boolean   @default(true)
+  emailVerified DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  profile      Profile?
+  fellow       Fellow?
+  mentor       Mentor?
+  partner      Partner?
+  applications Application[]
+  enrollments  Enrollment[]
+  submissions  Submission[]
+  notifications Notification[]
+  eventRegistrations EventRegistration[]
+  sentMessages     Message[] @relation("MessageSender")
+  receivedMessages Message[] @relation("MessageRecipient")
+  announcementsAuthored Announcement[] @relation("AnnouncementAuthor")
+  programmesCreated     Programme[]    @relation("ProgrammeCreator")
+  coordinatorRoles      ProgrammeCoordinator[]
+  projectsCreated       Project[] @relation("ProjectCreator")
+  projectMemberships    ProjectMember[]
+  resourcesUploaded     Resource[] @relation("ResourceUploader")
+  opportunitiesPosted   Opportunity[] @relation("OpportunityPoster")
+  eventsCreated         Event[] @relation("EventCreator")
+  coursesCreated        Course[] @relation("CourseCreator")
+  testimonial           Testimonial?
+  certificates          Certificate[]
+  auditLogs             AuditLog[]
+
+  @@index([role])
+}
+
+model Profile {
+  id           String    @id @default(cuid())
+  userId       String    @unique
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bio          String?
+  headline     String?
+  location     String?
+  state        String?
+  country      String    @default("Nigeria")
+  dateOfBirth  DateTime?
+  gender       String?
+  education    String?
+  institution  String?
+  linkedin     String?
+  twitter      String?
+  website      String?
+  skills       String[]  @default([])
+  interests    String[]  @default([])
+  updatedAt    DateTime  @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Programmes & Fellowship
+// ---------------------------------------------------------------------------
+
+model Programme {
+  id                  String          @id @default(cuid())
+  slug                String          @unique
+  name                String
+  description         String
+  theme               String?
+  startDate           DateTime?
+  endDate             DateTime?
+  applicationDeadline DateTime?
+  location            String?
+  deliveryFormat      DeliveryFormat  @default(HYBRID)
+  eligibility         String?
+  slots               Int             @default(0)
+  status              ProgrammeStatus @default(DRAFT)
+  heroImage           String?
+  createdById         String?
+  createdBy           User?           @relation("ProgrammeCreator", fields: [createdById], references: [id])
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  cohorts      Cohort[]
+  coordinators ProgrammeCoordinator[]
+  applications Application[]
+  courses      Course[]
+  events       Event[]
+  resources    Resource[]
+  projects     Project[]
+  testimonials Testimonial[]
+
+  @@index([status])
+}
+
+model ProgrammeCoordinator {
+  id          String    @id @default(cuid())
+  programmeId String
+  programme   Programme @relation(fields: [programmeId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String    @default("Programme Coordinator")
+
+  @@unique([programmeId, userId])
+}
+
+model Cohort {
+  id                  String       @id @default(cuid())
+  programmeId         String
+  programme           Programme    @relation(fields: [programmeId], references: [id], onDelete: Cascade)
+  name                String // e.g. "CitizensNexus 1.0"
+  year                Int
+  applicationOpenAt   DateTime?
+  applicationCloseAt  DateTime?
+  selectionProcess    String?
+  status              CohortStatus @default(UPCOMING)
+  createdAt           DateTime     @default(now())
+
+  applications  Application[]
+  fellows       Fellow[]
+  announcements Announcement[]
+  certificates  Certificate[]
+  events        Event[]
+  assignments   Assignment[]
+  attendance    Attendance[]
+  mentorAssignments MentorAssignment[]
+  projects      Project[]
+
+  @@unique([programmeId, name])
+}
+
+model Application {
+  id                    String            @id @default(cuid())
+  userId                String
+  user                  User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  programmeId           String
+  programme             Programme         @relation(fields: [programmeId], references: [id], onDelete: Cascade)
+  cohortId              String?
+  cohort                Cohort?           @relation(fields: [cohortId], references: [id])
+  status                ApplicationStatus @default(DRAFT)
+
+  // Personal & background
+  personalInfo          Json?
+  education             Json?
+  professionalBackground Json?
+  leadershipExperience  String?
+  communityInvolvement  String?
+  skills                String[]          @default([])
+  motivation            String?
+  careerAspirations     String?
+  challenges            String?
+  programmeExpectations String?
+  portfolioLinks        Json?
+  referenceContacts     Json?
+  essayResponses        Json?
+
+  score                 Float?
+  reviewerNotes         String?
+  reviewedById          String?
+  reviewedAt            DateTime?
+  submittedAt           DateTime?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  fellow                Fellow?
+
+  @@unique([userId, programmeId, cohortId])
+  @@index([status])
+}
+
+model Fellow {
+  id             String       @id @default(cuid())
+  userId         String       @unique
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cohortId       String
+  cohort         Cohort       @relation(fields: [cohortId], references: [id])
+  applicationId  String?      @unique
+  application    Application? @relation(fields: [applicationId], references: [id])
+  fellowNumber   String       @unique
+  status         FellowStatus @default(ACTIVE)
+  progressPercent Int         @default(0)
+  joinedAt       DateTime     @default(now())
+  completedAt    DateTime?
+
+  mentorAssignments MentorAssignment[]
+  certificates      Certificate[]
+  projectMemberships ProjectMember[]
+  attendance        Attendance[]
+  submissions       Submission[] @relation("FellowSubmissions")
+}
+
+// ---------------------------------------------------------------------------
+// Mentorship
+// ---------------------------------------------------------------------------
+
+model Mentor {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title           String?
+  organisation    String?
+  bio             String?
+  expertiseAreas  String[] @default([])
+  mentorshipAreas String[] @default([])
+  yearsExperience Int?
+  linkedin        String?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+
+  assignments MentorAssignment[]
+}
+
+model MentorAssignment {
+  id        String                  @id @default(cuid())
+  mentorId  String
+  mentor    Mentor                  @relation(fields: [mentorId], references: [id], onDelete: Cascade)
+  fellowId  String
+  fellow    Fellow                  @relation(fields: [fellowId], references: [id], onDelete: Cascade)
+  cohortId  String?
+  cohort    Cohort?                 @relation(fields: [cohortId], references: [id])
+  status    MentorAssignmentStatus  @default(ACTIVE)
+  startDate DateTime                @default(now())
+  endDate   DateTime?
+  notes     String?
+
+  sessions MentorSession[]
+
+  @@unique([mentorId, fellowId])
+}
+
+model MentorSession {
+  id                  String        @id @default(cuid())
+  mentorAssignmentId  String
+  mentorAssignment    MentorAssignment @relation(fields: [mentorAssignmentId], references: [id], onDelete: Cascade)
+  scheduledAt         DateTime
+  durationMinutes     Int           @default(45)
+  status              SessionStatus @default(SCHEDULED)
+  mentorNotes         String?
+  fellowFeedback      String?
+  createdAt           DateTime      @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Learning Hub
+// ---------------------------------------------------------------------------
+
+model Course {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  title       String
+  description String
+  category    String
+  programmeId String?
+  programme   Programme? @relation(fields: [programmeId], references: [id])
+  coverImage  String?
+  isPublished Boolean  @default(false)
+  createdById String?
+  createdBy   User?    @relation("CourseCreator", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+
+  modules     CourseModule[]
+  enrollments Enrollment[]
+}
+
+model CourseModule {
+  id       String @id @default(cuid())
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title    String
+  description String?
+  order    Int    @default(0)
+
+  lessons Lesson[]
+}
+
+model Lesson {
+  id              String      @id @default(cuid())
+  moduleId        String
+  module          CourseModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  title           String
+  contentType     ContentType @default(ARTICLE)
+  contentUrl      String?
+  contentBody     String?
+  durationMinutes Int?
+  order           Int         @default(0)
+
+  assignments Assignment[]
+}
+
+model Enrollment {
+  id              String           @id @default(cuid())
+  userId          String
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId        String
+  course          Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  status          EnrollmentStatus @default(NOT_STARTED)
+  progressPercent Int              @default(0)
+  startedAt       DateTime?
+  completedAt     DateTime?
+
+  @@unique([userId, courseId])
+}
+
+model Assignment {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  lessonId    String?
+  lesson      Lesson?  @relation(fields: [lessonId], references: [id])
+  cohortId    String?
+  cohort      Cohort?  @relation(fields: [cohortId], references: [id])
+  dueDate     DateTime?
+  maxScore    Int      @default(100)
+  createdAt   DateTime @default(now())
+
+  submissions Submission[]
+}
+
+model Submission {
+  id           String            @id @default(cuid())
+  assignmentId String
+  assignment   Assignment        @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fellowId     String?
+  fellow       Fellow?           @relation("FellowSubmissions", fields: [fellowId], references: [id])
+  content      String?
+  fileUrl      String?
+  status       SubmissionStatus  @default(SUBMITTED)
+  score        Int?
+  feedback     String?
+  submittedAt  DateTime          @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Events
+// ---------------------------------------------------------------------------
+
+model Event {
+  id          String    @id @default(cuid())
+  slug        String    @unique
+  title       String
+  description String
+  eventType   EventType @default(TRAINING)
+  mode        EventMode @default(ONLINE)
+  startAt     DateTime
+  endAt       DateTime?
+  location    String?
+  onlineLink  String?
+  speaker     String?
+  capacity    Int?
+  coverImage  String?
+  programmeId String?
+  programme   Programme? @relation(fields: [programmeId], references: [id])
+  cohortId    String?
+  cohort      Cohort?   @relation(fields: [cohortId], references: [id])
+  isPublished Boolean   @default(false)
+  createdById String?
+  createdBy   User?     @relation("EventCreator", fields: [createdById], references: [id])
+  createdAt   DateTime  @default(now())
+
+  registrations EventRegistration[]
+
+  @@index([startAt])
+}
+
+model EventRegistration {
+  id           String   @id @default(cuid())
+  eventId      String
+  event        Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  registeredAt DateTime @default(now())
+  attended     Boolean  @default(false)
+
+  @@unique([eventId, userId])
+}
+
+// ---------------------------------------------------------------------------
+// Opportunities
+// ---------------------------------------------------------------------------
+
+model Opportunity {
+  id              String              @id @default(cuid())
+  slug            String              @unique
+  title           String
+  organisation    String
+  description     String
+  eligibility     String?
+  location        String?
+  deadline        DateTime?
+  applicationUrl  String
+  category        OpportunityCategory
+  isFeatured      Boolean             @default(false)
+  isPublished     Boolean             @default(true)
+  postedById      String?
+  postedBy        User?               @relation("OpportunityPoster", fields: [postedById], references: [id])
+  createdAt       DateTime            @default(now())
+
+  @@index([category])
+  @@index([deadline])
+}
+
+// ---------------------------------------------------------------------------
+// Projects & SDG impact
+// ---------------------------------------------------------------------------
+
+model Sdg {
+  id          String  @id @default(cuid())
+  number      Int     @unique
+  name        String
+  description String
+  colorHex    String
+
+  projects ProjectSDG[]
+}
+
+model Project {
+  id             String        @id @default(cuid())
+  slug           String        @unique
+  title          String
+  description    String
+  problem        String?
+  solution       String?
+  location       String?
+  programmeId    String?
+  programme      Programme?    @relation(fields: [programmeId], references: [id])
+  cohortId       String?
+  cohort         Cohort?       @relation(fields: [cohortId], references: [id])
+  status         ProjectStatus @default(ONGOING)
+  year           Int
+  impactSummary  String?
+  resultsSummary String?
+  coverImage     String?
+  images         String[]      @default([])
+  videoUrl       String?
+  createdById    String?
+  createdBy      User?         @relation("ProjectCreator", fields: [createdById], references: [id])
+  createdAt      DateTime      @default(now())
+
+  sdgs    ProjectSDG[]
+  members ProjectMember[]
+
+  @@index([status])
+  @@index([year])
+}
+
+model ProjectSDG {
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sdgId     String
+  sdg       Sdg     @relation(fields: [sdgId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, sdgId])
+}
+
+model ProjectMember {
+  id        String  @id @default(cuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fellowId  String?
+  fellow    Fellow? @relation(fields: [fellowId], references: [id])
+  roleInProject String @default("Team Member")
+
+  @@unique([projectId, userId])
+}
+
+// ---------------------------------------------------------------------------
+// Certificates
+// ---------------------------------------------------------------------------
+
+model Certificate {
+  id               String    @id @default(cuid())
+  certificateCode  String    @unique
+  userId           String
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fellowId         String?
+  fellow           Fellow?   @relation(fields: [fellowId], references: [id])
+  programmeId      String
+  cohortId         String?
+  cohort           Cohort?   @relation(fields: [cohortId], references: [id])
+  programmeName    String
+  issuedAt         DateTime  @default(now())
+  signatoryName    String    @default("Programme Director")
+  signatoryTitle   String    @default("CitizensNexus")
+  pdfUrl           String?
+
+  @@index([certificateCode])
+}
+
+// ---------------------------------------------------------------------------
+// Community, notifications, messaging, content
+// ---------------------------------------------------------------------------
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  body      String
+  link      String?
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  @@index([userId, isRead])
+}
+
+model Message {
+  id          String   @id @default(cuid())
+  senderId    String
+  sender      User     @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  recipientId String
+  recipient   User     @relation("MessageRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  body        String
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([recipientId, isRead])
+}
+
+model Announcement {
+  id          String               @id @default(cuid())
+  title       String
+  body        String
+  audience    AnnouncementAudience @default(ALL)
+  cohortId    String?
+  cohort      Cohort?              @relation(fields: [cohortId], references: [id])
+  isPublished Boolean              @default(true)
+  publishedAt DateTime             @default(now())
+  createdById String?
+  createdBy   User?                @relation("AnnouncementAuthor", fields: [createdById], references: [id])
+
+  @@index([audience])
+}
+
+model Attendance {
+  id        String   @id @default(cuid())
+  cohortId  String
+  cohort    Cohort   @relation(fields: [cohortId], references: [id], onDelete: Cascade)
+  fellowId  String
+  fellow    Fellow   @relation(fields: [fellowId], references: [id], onDelete: Cascade)
+  sessionLabel String
+  sessionDate DateTime
+  present   Boolean  @default(true)
+
+  @@unique([cohortId, fellowId, sessionLabel])
+}
+
+model Partner {
+  id               String      @id @default(cuid())
+  userId           String?     @unique
+  user             User?       @relation(fields: [userId], references: [id])
+  organisationName String
+  type             PartnerType
+  logoUrl          String?
+  website          String?
+  description      String?
+  contactName      String?
+  contactEmail     String?
+  isFeatured       Boolean     @default(false)
+  isApproved       Boolean     @default(false)
+  createdAt        DateTime    @default(now())
+}
+
+model PartnershipInquiry {
+  id               String        @id @default(cuid())
+  organisationName String
+  contactName      String
+  contactEmail     String
+  contactPhone     String?
+  message          String
+  status           InquiryStatus @default(NEW)
+  createdAt        DateTime      @default(now())
+}
+
+model Resource {
+  id           String       @id @default(cuid())
+  title        String
+  description  String?
+  category     String?
+  resourceType ResourceType @default(PDF)
+  fileUrl      String
+  programmeId  String?
+  programme    Programme?   @relation(fields: [programmeId], references: [id])
+  isPublished  Boolean      @default(true)
+  uploadedById String?
+  uploadedBy   User?        @relation("ResourceUploader", fields: [uploadedById], references: [id])
+  createdAt    DateTime     @default(now())
+}
+
+model Testimonial {
+  id           String    @id @default(cuid())
+  userId       String?   @unique
+  user         User?     @relation(fields: [userId], references: [id])
+  authorName   String
+  authorRole   String?
+  authorPhoto  String?
+  quote        String
+  storyBody    String?
+  programmeId  String?
+  programme    Programme? @relation(fields: [programmeId], references: [id])
+  isFeatured   Boolean   @default(false)
+  isPublished  Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+}
+
+model ContactMessage {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  subject   String?
+  message   String
+  createdAt DateTime @default(now())
+  isRead    Boolean  @default(false)
+}
+
+model SiteSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     Json
+  updatedAt DateTime @updatedAt
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  action     String
+  entityType String
+  entityId   String?
+  metadata   Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+}
