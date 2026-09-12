@@ -70,3 +70,11 @@ export async function getSession(): Promise<SessionPayload | null> {
 }
 
 export { ROLE_LABELS, dashboardPathForRole } from "@/lib/roles";
+
+const ADMIN_ROLES: Role[] = ["ADMIN", "PROGRAMME_MANAGER"];
+
+export async function requireAdminSession(): Promise<SessionPayload | null> {
+  const session = await getSession();
+  if (!session || !ADMIN_ROLES.includes(session.role)) return null;
+  return session;
+}
