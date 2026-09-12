@@ -368,7 +368,7 @@ async function main() {
     update: {},
   });
 
-  const speakingCourse = await db.course.upsert({
+  await db.course.upsert({
     where: { slug: "public-speaking-mastery" },
     create: {
       slug: "public-speaking-mastery",

@@ -15,7 +15,7 @@ export async function POST(request: Request, { params }: RouteContext<"/api/admi
   if (!parsed.success) return NextResponse.json({ error: "Invalid input" }, { status: 400 });
 
   const order = await db.courseModule.count({ where: { courseId: id } });
-  const module = await db.courseModule.create({ data: { ...parsed.data, courseId: id, order } });
+  const courseModule = await db.courseModule.create({ data: { ...parsed.data, courseId: id, order } });
 
-  return NextResponse.json({ module }, { status: 201 });
+  return NextResponse.json({ module: courseModule }, { status: 201 });
 }

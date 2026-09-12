@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Application } from "@prisma/client";
-import { Label, Input, Textarea, Select, FieldError, FormField, FieldHint } from "@/components/ui/form";
+import { Label, Input, Textarea, Select, FormField, FieldHint } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { FELLOW_DEVELOPMENT_AREAS } from "@/lib/constants";
 

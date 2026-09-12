@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { Section, Container, SectionHeading } from "@/components/ui/container";
+import { Section, Container } from "@/components/ui/container";
 import { Badge } from "@/components/ui/card";
 import { LinkButton } from "@/components/ui/button";
 import { EventCard } from "@/components/marketing/cards";
